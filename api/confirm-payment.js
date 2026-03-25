@@ -1,0 +1,103 @@
+import Razorpay from "razorpay";
+import admin from "firebase-admin";
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_KEY))
+  });
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false });
+  }
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY,
+    key_secret: process.env.RAZORPAY_SECRET
+  });
+
+ const { paymentId, businessId, planId, action } = req.body;
+
+  try {
+    const payment = await razorpay.payments.fetch(paymentId);
+
+    if (payment.status !== "captured" && payment.status !== "authorized") {
+      return res.status(400).json({ success: false });
+    }
+
+    const db = admin.firestore();
+
+    const businessRef = db.collection("businesses").doc(businessId);
+    const snap = await businessRef.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({ success: false });
+    }
+
+    const now = new Date();
+    const settingsSnap = await db.collection("settings").doc("app").get();
+const settings = settingsSnap.data();
+
+let durationDays = 30;
+
+if (planId === "standard") {
+  durationDays = settings.standardDuration || 30;
+} else if (planId === "featured") {
+  durationDays = settings.featuredDuration || 30;
+}
+
+    const currentData = snap.data();
+const currentExpiry = currentData.planExpiresAt?.toDate();
+
+let startDate;
+let endDate;
+
+if (action === "upgrade") {
+  // 🔥 immediate activation
+  startDate = now;
+  endDate = new Date(now.getTime() + durationDays * 86400000);
+
+  await businessRef.update({
+    planId: planId,
+    planStartAt: startDate,
+    planExpiresAt: endDate,
+
+    // clear upcoming
+    upcomingPlanId: admin.firestore.FieldValue.delete(),
+    upcomingPlanStartAt: admin.firestore.FieldValue.delete(),
+    upcomingPlanExpiresAt: admin.firestore.FieldValue.delete(),
+
+    paymentStatus: "paid",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+} else {
+  // 🔵 renew / downgrade → schedule
+
+  let baseDate = now;
+
+  if (currentExpiry && currentExpiry > now) {
+    baseDate = currentExpiry;
+  }
+
+  startDate = baseDate;
+  endDate = new Date(baseDate.getTime() + durationDays * 86400000);
+
+  await businessRef.update({
+    upcomingPlanId: planId,
+    upcomingPlanStartAt: startDate,
+    upcomingPlanExpiresAt: endDate,
+
+    paymentStatus: "paid",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+    return res.status(200).json({ success: true });
+
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ success: false });
+  }
+}

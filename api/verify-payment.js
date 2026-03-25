@@ -28,11 +28,20 @@ export default async function handler(req, res) {
 
     console.log("STATUS:", payment.status); // 👈 DEBUG
 
-    if (payment.status === "captured" || payment.status === "authorized") {
-      return res.status(200).json({ success: true });
-    }
+    if (payment.status === "captured") {
+  return res.status(200).json({ success: true });
+}
 
-    return res.status(200).json({ success: false });
+// 👇 TEMP allow authorized (optional)
+if (payment.status === "authorized") {
+  return res.status(200).json({ success: true });
+}
+
+console.log("Payment not completed:", payment.status);
+
+return res.status(200).json({ success: false });
+
+   
 
   } catch (err) {
     console.log(err);
