@@ -9,12 +9,16 @@ if (!admin.apps.length) {
 
 
 
+
   export default async function handler(req, res) {
 
   // ✅ ADD THIS BLOCK
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+res.setHeader(
+  "Access-Control-Allow-Headers",
+  "Content-Type, Authorization"
+);
 
   // ✅ HANDLE PREFLIGHT
   if (req.method === "OPTIONS") {
@@ -23,6 +27,22 @@ if (!admin.apps.length) {
   if (req.method !== "POST") {
     return res.status(405).json({ success: false });
   }
+
+  const authHeader = req.headers.authorization;
+
+if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  return res.status(401).json({ success: false, message: "Unauthorized" });
+}
+
+const idToken = authHeader.split("Bearer ")[1];
+
+let decoded;
+
+try {
+  decoded = await admin.auth().verifyIdToken(idToken);
+} catch (e) {
+  return res.status(401).json({ success: false, message: "Invalid token" });
+}
 
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY,
@@ -35,8 +55,18 @@ if (!admin.apps.length) {
     const payment = await razorpay.payments.fetch(paymentId);
 
     if (payment.status !== "captured" && payment.status !== "authorized") {
-      return res.status(400).json({ success: false });
-    }
+  return res.status(400).json({ success: false });
+}
+
+
+if (payment.notes?.businessId !== businessId) {
+  return res.status(400).json({
+    success: false,
+    message: "Payment mismatch"
+  });
+}
+
+    
 
     const db = admin.firestore();
 
@@ -44,8 +74,16 @@ if (!admin.apps.length) {
     const snap = await businessRef.get();
 
     if (!snap.exists) {
-      return res.status(404).json({ success: false });
-    }
+  return res.status(404).json({ success: false });
+}
+
+const businessData = snap.data();
+
+if (businessData.userId !== decoded.uid) {
+  return res.status(403).json({ success: false, message: "Forbidden" });
+}
+
+    
 
     const now = new Date();
     const settingsSnap = await db.collection("settings").doc("app").get();
