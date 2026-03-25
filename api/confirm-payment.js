@@ -79,7 +79,7 @@ if (payment.notes?.businessId !== businessId) {
 
 const businessData = snap.data();
 
-if (businessData.userId !== decoded.uid) {
+if (businessData.ownerId !== decoded.uid) {
   return res.status(403).json({ success: false, message: "Forbidden" });
 }
 
