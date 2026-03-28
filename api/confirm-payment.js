@@ -115,6 +115,8 @@ if (action === "upgrade" || isExpired) {
     planStartAt: startDate,
     planExpiresAt: endDate,
 
+     status: "active",
+
     // clear upcoming
     upcomingPlanId: admin.firestore.FieldValue.delete(),
     upcomingPlanStartAt: admin.firestore.FieldValue.delete(),
@@ -140,7 +142,7 @@ if (action === "upgrade" || isExpired) {
     upcomingPlanId: planId,
     upcomingPlanStartAt: startDate,
     upcomingPlanExpiresAt: endDate,
-
+ status: "active",
     paymentStatus: "paid",
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
