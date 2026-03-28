@@ -103,7 +103,9 @@ const currentExpiry = currentData.planExpiresAt?.toDate();
 let startDate;
 let endDate;
 
-if (action === "upgrade") {
+const isExpired = !currentExpiry || currentExpiry < now;
+
+if (action === "upgrade" || isExpired) {
   // 🔥 immediate activation
   startDate = now;
   endDate = new Date(now.getTime() + durationDays * 86400000);
