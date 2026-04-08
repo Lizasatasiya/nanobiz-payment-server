@@ -52,12 +52,42 @@ try {
  const { paymentId, businessId, planId, action } = req.body;
 
   try {
-    const payment = await razorpay.payments.fetch(paymentId);
+    let payment = await razorpay.payments.fetch(paymentId);
 
-    if (payment.status !== "captured" && payment.status !== "authorized") {
-  return res.status(400).json({ success: false });
+   
+if (payment.status === "authorized") {
+  try {
+    await razorpay.payments.capture(paymentId, payment.amount);
+     payment = await razorpay.payments.fetch(paymentId);
+    
+
+if (payment.status !== "captured") {
+      return res.status(400).json({
+        success: false,
+        message: "Capture failed"
+      });
+    }
+
+  }  catch (err) {
+  if (err.error && err.error.description?.includes("already captured")) {
+  payment = await razorpay.payments.fetch(paymentId); 
+} else {
+  console.log("Capture error:", err);
+  return res.status(400).json({
+    success: false,
+    message: "Capture failed"
+  });
+}
+}
 }
 
+
+if (payment.status !== "captured") {
+  return res.status(400).json({
+    success: false,
+    message: "Payment not completed"
+  });
+}
 
 if (payment.notes?.businessId !== businessId) {
   return res.status(400).json({
