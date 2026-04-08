@@ -135,7 +135,7 @@ if (promoCode && promoCode === settings.promoCode) {
   finalPrice = basePrice - discount;
 }
 
-// ✅ ADD GST
+
 const finalAmount = Math.round((finalPrice * 1.18) * 100); // paise
 
 if (payment.amount !== finalAmount) {
@@ -144,6 +144,9 @@ if (payment.amount !== finalAmount) {
     message: "Amount mismatch"
   });
 }
+
+console.log("Frontend paid:", payment.amount);
+console.log("Backend expected:", finalAmount);
 
 let durationDays = 30;
 
