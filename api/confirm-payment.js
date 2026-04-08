@@ -49,7 +49,7 @@ try {
     key_secret: process.env.RAZORPAY_SECRET
   });
 
- const { paymentId, businessId, planId, action } = req.body;
+const { paymentId, businessId, planId, action, promoCode } = req.body;
 
   try {
     let payment = await razorpay.payments.fetch(paymentId);
@@ -118,6 +118,32 @@ if (businessData.ownerId !== decoded.uid) {
     const now = new Date();
     const settingsSnap = await db.collection("settings").doc("app").get();
 const settings = settingsSnap.data();
+
+let basePrice = 0;
+
+if (planId === "standard") {
+  basePrice = settings.standardPrice;
+} else if (planId === "featured") {
+  basePrice = settings.featuredPrice;
+}
+
+// ✅ APPLY PROMO
+let finalPrice = basePrice;
+
+if (promoCode && promoCode === settings.promoCode) {
+  const discount = basePrice * (settings.discountPercent / 100);
+  finalPrice = basePrice - discount;
+}
+
+// ✅ ADD GST
+const finalAmount = Math.round((finalPrice * 1.18) * 100); // paise
+
+if (payment.amount !== finalAmount) {
+  return res.status(400).json({
+    success: false,
+    message: "Amount mismatch"
+  });
+}
 
 let durationDays = 30;
 
