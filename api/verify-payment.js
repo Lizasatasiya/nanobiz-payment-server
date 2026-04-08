@@ -26,18 +26,14 @@ export default async function handler(req, res) {
     const payment = await razorpay.payments.fetch(paymentId);
 
 
-    if (payment.status === "captured") {
+if (payment.status === "captured") {
   return res.status(200).json({ success: true });
 }
 
-// 👇 TEMP allow authorized (optional)
-if (payment.status === "authorized") {
-  return res.status(200).json({ success: true });
-}
-
-console.log("Payment not completed:", payment.status);
-
+console.log("Payment not captured:", payment.status);
 return res.status(200).json({ success: false });
+
+
 
    
 
@@ -45,4 +41,5 @@ return res.status(200).json({ success: false });
     console.log(err);
     return res.status(500).json({ success: false });
   }
+  
 }
