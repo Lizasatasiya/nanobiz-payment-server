@@ -80,7 +80,7 @@ export default async function handler(req, res) {
 
     const refData = refDoc.data();
 
-    if (refData.count < 1) {
+    if (refData.count < 5) {
       return res.status(400).json({ success: false, message: "Not enough referrals" });
     }
 
