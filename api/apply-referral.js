@@ -5,6 +5,32 @@ if (!admin.apps.length) {
     credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_KEY))
   });
 }
+async function logReferralPayment({ db, businessId, start, end }) {
+  const now = new Date();
+
+  await db
+    .collection("payments")
+    .doc(businessId)
+    .collection("payments")
+    .add({
+      id: "ref_" + now.getTime(),
+      businessId: businessId,
+      planId: "featured",
+
+      amount: 0, 
+      total: 0,
+
+      status: "referral",
+      paymentMethod: "referral", 
+          
+
+      paymentDate: now,
+      createdAt: now,
+
+      planStartAt: start,
+      planExpiresAt: end,
+    });
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -54,7 +80,7 @@ export default async function handler(req, res) {
 
     const refData = refDoc.data();
 
-    if (refData.count < 5) {
+    if (refData.count < 1) {
       return res.status(400).json({ success: false, message: "Not enough referrals" });
     }
 
@@ -80,21 +106,42 @@ export default async function handler(req, res) {
 
     // 🎯 APPLY FEATURED PLAN
     if (!business.planId || business.planId !== "featured") {
-      await businessRef.update({
-        planId: "featured",
-        planStartAt: now,
-        planExpiresAt: new Date(now.getTime() + 30 * 86400000),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      const start = now;
+const end = new Date(now.getTime() + 30 * 86400000);
+
+await businessRef.update({
+  planId: "featured",
+  planStartAt: start,
+  planExpiresAt: end,
+  status: "active",
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+});
+
+// ✅ LOG PAYMENT
+await logReferralPayment({
+  db,
+  businessId,
+  start,
+  end
+});
     } else if (!business.upcomingPlanStartAt) {
-      await businessRef.update({
-        upcomingPlanId: "featured",
-        upcomingPlanStartAt: business.planExpiresAt,
-        upcomingPlanExpiresAt: new Date(
-          business.planExpiresAt.toDate().getTime() + 30 * 86400000
-        ),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      const start = business.planExpiresAt.toDate();
+const end = new Date(start.getTime() + 30 * 86400000);
+
+await businessRef.update({
+  upcomingPlanId: "featured",
+  upcomingPlanStartAt: start,
+  upcomingPlanExpiresAt: end,
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+});
+
+// ✅ LOG PAYMENT
+await logReferralPayment({
+  db,
+  businessId,
+  start,
+  end
+});
     } else {
       return res.status(400).json({
         success: false,
